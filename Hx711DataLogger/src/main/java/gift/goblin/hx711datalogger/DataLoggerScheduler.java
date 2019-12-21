@@ -13,6 +13,7 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 import gift.goblin.hx711.GainFactor;
 import gift.goblin.hx711.Hx711;
+import gift.goblin.hx711datalogger.excel.ExcelWriter;
 import gift.goblin.hx711datalogger.system.ArgumentReader;
 import gift.goblin.hx711datalogger.system.MessageReader;
 import java.io.FileNotFoundException;
@@ -35,12 +36,14 @@ public class DataLoggerScheduler {
     
     private final ArgumentReader argumentReader;
     private final MessageReader messageReader;
+    private final ExcelWriter excelWriter;
     private String[] args;
 
     public DataLoggerScheduler(String[] args) throws IOException {
         this.args = args;
         this.messageReader = new MessageReader();
         this.argumentReader = new ArgumentReader(messageReader);
+        this.excelWriter = new ExcelWriter();
     }
 
     /**
@@ -52,6 +55,7 @@ public class DataLoggerScheduler {
         int pinNumberSCK = argumentReader.getPinNumberSCK(args);
         int sleepTimeBetweenMeasurement = argumentReader.getSleepTimeBetweenMeasurement(args);
         
+        
         setupRaspberry(pinNumberDat, pinNumberSCK);
         
         do {
@@ -59,9 +63,12 @@ public class DataLoggerScheduler {
             long tareValue = hx711LoadCell1.measureAndSetTare();
             System.out.println(messageReader.getMessageAndReplaceHashtag("system.measurement.success", new Long(tareValue)));
             
+            excelWriter.writeTare(tareValue);
             
             try {
+                System.out.println("Start sleeping...");
                 Thread.sleep(sleepTimeBetweenMeasurement * 1000 * 60);
+                System.out.println("Woke up...");
             } catch (InterruptedException ex) {
                 System.out.println(messageReader.getMessage("system.sleep.error"));
                 System.out.println(ex.getMessage());

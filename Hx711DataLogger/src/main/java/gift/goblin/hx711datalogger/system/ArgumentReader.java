@@ -14,7 +14,7 @@ public class ArgumentReader {
     // Default values, if no argument could get read
     private static final int DEFAULT_PIN_NO_LOAD_CELL_DAT = 15;
     private static final int DEFAULT_PIN_NO_LOAD_CELL_SCK = 16;
-    private static final int DEFAULT_MEASUREMENT_RHYTM_MINS = 5;
+    private static final int DEFAULT_MEASUREMENT_RHYTM_MINS = 1;
 
     public ArgumentReader(MessageReader messageReader) {
         this.messageReader = messageReader;
