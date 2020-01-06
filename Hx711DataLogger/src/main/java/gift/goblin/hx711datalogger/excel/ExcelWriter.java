@@ -25,10 +25,10 @@ public class ExcelWriter {
     private int rowNumber = 1;
     private File file;
     
-    public ExcelWriter() {
+    public ExcelWriter(String fileName) {
         workbook = new XSSFWorkbook();
         sheet = workbook.createSheet("TareMeasurement");
-        file = new File("tareMeasurement.xlsx");
+        file = new File(fileName);
     }
     
     public void writeTare(long tareValue) {

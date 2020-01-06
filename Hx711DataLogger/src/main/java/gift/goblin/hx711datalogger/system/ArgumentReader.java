@@ -14,7 +14,8 @@ public class ArgumentReader {
     // Default values, if no argument could get read
     private static final int DEFAULT_PIN_NO_LOAD_CELL_DAT = 15;
     private static final int DEFAULT_PIN_NO_LOAD_CELL_SCK = 16;
-    private static final int DEFAULT_MEASUREMENT_RHYTM_MINS = 1;
+    private static final int DEFAULT_MEASUREMENT_RHYTM_SECONDS = 60;
+    private static final String DEFAULT_FILENAME = "tareMeasurement.xlsx";
 
     public ArgumentReader(MessageReader messageReader) {
         this.messageReader = messageReader;
@@ -43,7 +44,7 @@ public class ArgumentReader {
             return DEFAULT_PIN_NO_LOAD_CELL_DAT;
         }
     }
-    
+
     /**
      * Try to read the given pin number for DAT- otherwise take default.
      *
@@ -67,7 +68,6 @@ public class ArgumentReader {
     }
 
     public int getSleepTimeBetweenMeasurement(String[] args) {
-
         if (args.length >= 3) {
             try {
                 int rhytm = Integer.parseInt(args[2]);
@@ -75,12 +75,25 @@ public class ArgumentReader {
                 return rhytm;
             } catch (NumberFormatException e) {
                 System.out.println(messageReader.getMessageAndReplaceHashtag("parameters.rhytm.nan", args[2]));
-                return DEFAULT_MEASUREMENT_RHYTM_MINS;
+                return DEFAULT_MEASUREMENT_RHYTM_SECONDS;
             }
         } else {
             System.out.println(messageReader.getMessage("parameters.rhytm.null"));
-            return DEFAULT_MEASUREMENT_RHYTM_MINS;
+            return DEFAULT_MEASUREMENT_RHYTM_SECONDS;
         }
+    }
+
+    public String getFileName(String[] args) {
+        if (args.length >= 4) {
+            String readFileName = args[3];
+            readFileName += ".xlsx";
+            System.out.println(messageReader.getMessageAndReplaceHashtag("parameters.filename.success", readFileName));
+            return readFileName;
+        } else {
+            System.out.println(messageReader.getMessage("parameters.filename.null"));
+            return DEFAULT_FILENAME;
+        }
+
     }
 
 }

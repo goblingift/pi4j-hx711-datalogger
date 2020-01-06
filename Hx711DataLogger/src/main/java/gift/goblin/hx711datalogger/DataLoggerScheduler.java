@@ -38,37 +38,34 @@ public class DataLoggerScheduler {
     private final MessageReader messageReader;
     private final ExcelWriter excelWriter;
     private String[] args;
+    private final int sleepTimeBetweenMeasurement;
 
     public DataLoggerScheduler(String[] args) throws IOException {
         this.args = args;
         this.messageReader = new MessageReader();
         this.argumentReader = new ArgumentReader(messageReader);
-        this.excelWriter = new ExcelWriter();
+        
+        int pinNumberDat = argumentReader.getPinNumberDat(args);
+        int pinNumberSCK = argumentReader.getPinNumberSCK(args);
+        sleepTimeBetweenMeasurement = argumentReader.getSleepTimeBetweenMeasurement(args);
+        String fileName = argumentReader.getFileName(args);
+        
+        setupRaspberry(pinNumberDat, pinNumberSCK);
+        
+        this.excelWriter = new ExcelWriter(fileName);
     }
 
     /**
      * The main-loop method.
      */
     public void doWork() {
-        
-        int pinNumberDat = argumentReader.getPinNumberDat(args);
-        int pinNumberSCK = argumentReader.getPinNumberSCK(args);
-        int sleepTimeBetweenMeasurement = argumentReader.getSleepTimeBetweenMeasurement(args);
-        
-        
-        setupRaspberry(pinNumberDat, pinNumberSCK);
-        
         do {
-            
             long tareValue = hx711LoadCell1.measureAndSetTare();
             System.out.println(messageReader.getMessageAndReplaceHashtag("system.measurement.success", new Long(tareValue)));
-            
             excelWriter.writeTare(tareValue);
-            
             try {
-                System.out.println("Start sleeping...");
-                Thread.sleep(sleepTimeBetweenMeasurement * 1000 * 60);
-                System.out.println("Woke up...");
+                System.out.println("Start sleeping " + sleepTimeBetweenMeasurement + " seconds...");
+                Thread.sleep(sleepTimeBetweenMeasurement * 1000);
             } catch (InterruptedException ex) {
                 System.out.println(messageReader.getMessage("system.sleep.error"));
                 System.out.println(ex.getMessage());
