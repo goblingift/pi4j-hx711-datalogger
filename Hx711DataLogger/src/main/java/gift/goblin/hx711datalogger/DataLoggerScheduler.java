@@ -82,7 +82,7 @@ public class DataLoggerScheduler {
                 "Load-cell DAT", PinPullResistance.OFF);
         pinLoadCellSck = gpioController.provisionDigitalOutputPin(RaspiPin.getPinByAddress(pinNumberSCK),
                 "Load-cell SCK", PinState.LOW);
-        hx711LoadCell1 = new Hx711(pinLoadCellDat, pinLoadCellSck, 5, 2.0, GainFactor.GAIN_128);
+        hx711LoadCell1 = new Hx711(pinLoadCellDat, pinLoadCellSck, 3, 1.0, GainFactor.GAIN_128);
         System.out.println(messageReader.getMessage("system.pins.success"));
     }
     
