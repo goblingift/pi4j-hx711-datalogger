@@ -63,6 +63,9 @@ public class DataLoggerScheduler {
             long tareValue = hx711LoadCell1.measureAndSetTare();
             System.out.println(messageReader.getMessageAndReplaceHashtag("system.measurement.success", new Long(tareValue)));
             excelWriter.writeTare(tareValue);
+            
+            System.out.println("Weight in gram: " + hx711LoadCell1.measure());
+            
             try {
                 System.out.println("Start sleeping " + sleepTimeBetweenMeasurement + " seconds...");
                 Thread.sleep(sleepTimeBetweenMeasurement * 1000);
@@ -79,7 +82,7 @@ public class DataLoggerScheduler {
                 "Load-cell DAT", PinPullResistance.OFF);
         pinLoadCellSck = gpioController.provisionDigitalOutputPin(RaspiPin.getPinByAddress(pinNumberSCK),
                 "Load-cell SCK", PinState.LOW);
-        hx711LoadCell1 = new Hx711(pinLoadCellDat, pinLoadCellSck, 500, 2.0, GainFactor.GAIN_128);
+        hx711LoadCell1 = new Hx711(pinLoadCellDat, pinLoadCellSck, 5, 2.0, GainFactor.GAIN_128);
         System.out.println(messageReader.getMessage("system.pins.success"));
     }
     
