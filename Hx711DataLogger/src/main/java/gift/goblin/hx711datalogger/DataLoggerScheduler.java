@@ -13,15 +13,16 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 import gift.goblin.hx711.GainFactor;
 import gift.goblin.hx711.Hx711;
+import gift.goblin.hx711datalogger.dto.PinAssignment;
 import gift.goblin.hx711datalogger.excel.ExcelWriter;
 import gift.goblin.hx711datalogger.system.ArgumentReader;
 import gift.goblin.hx711datalogger.system.MessageReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -29,30 +30,40 @@ import java.util.logging.Logger;
  */
 public class DataLoggerScheduler {
 
+    private final int loadCellCount;
+    private List<Hx711> loadCells;
 
-    GpioPinDigitalInput pinLoadCellDat;
-    GpioPinDigitalOutput pinLoadCellSck;
-    Hx711 hx711LoadCell1;
-    
     private final ArgumentReader argumentReader;
     private final MessageReader messageReader;
     private final ExcelWriter excelWriter;
-    private String[] args;
     private final int sleepTimeBetweenMeasurement;
 
     public DataLoggerScheduler(String[] args) throws IOException {
-        this.args = args;
         this.messageReader = new MessageReader();
         this.argumentReader = new ArgumentReader(messageReader);
-        
-        int pinNumberDat = argumentReader.getPinNumberDat(args);
-        int pinNumberSCK = argumentReader.getPinNumberSCK(args);
-        sleepTimeBetweenMeasurement = argumentReader.getSleepTimeBetweenMeasurement(args);
+
+        // Check if we have at least 5 arguments
+        boolean enoughArguments = argumentReader.haveEnoughArguments(args);
+        if (!enoughArguments) {
+            System.out.println(messageReader.getMessage("parameters.count.invalid.shutdown"));
+            System.exit(-1);
+        }
+
+        // parameter 1: filename
         String fileName = argumentReader.getFileName(args);
-        
-        setupRaspberry(pinNumberDat, pinNumberSCK);
-        
-        this.excelWriter = new ExcelWriter(fileName);
+        // parameter 2: measurement rhytm (seconds)
+        sleepTimeBetweenMeasurement = argumentReader.getSleepTimeBetweenMeasurement(args);
+        // parameter 3: maximum weight per single loadcell
+        int maxWeightSingleLoadCell = argumentReader.getMaxWeightOfSingleLoadCell(args);
+        // parameter 4: mv/V per loadcell
+        double mvVLoadCell = argumentReader.getMVVOfSingleLoadCell(args);
+        // parameter 5 and followings: dat/sck pin numbers
+        List<PinAssignment> pinAssignments = argumentReader.getPinAssignments(args);
+        loadCellCount = pinAssignments.size();
+
+        setupRaspberry(pinAssignments, maxWeightSingleLoadCell, mvVLoadCell);
+
+        this.excelWriter = new ExcelWriter(fileName, loadCellCount);
     }
 
     /**
@@ -60,12 +71,29 @@ public class DataLoggerScheduler {
      */
     public void doWork() {
         do {
-            long tareValue = hx711LoadCell1.measureAndSetTare();
-            System.out.println(messageReader.getMessageAndReplaceHashtag("system.measurement.success", new Long(tareValue)));
-            excelWriter.writeTare(tareValue);
-            
-            System.out.println("Weight in gram: " + hx711LoadCell1.measure());
-            
+            List<Long> newValues = new ArrayList<>();
+            List<Long> newWeights = new ArrayList<>();
+            for (Hx711 actLoadCell : loadCells) {
+                long value = actLoadCell.readValue();
+                System.out.println(messageReader.getMessageAndReplaceHashtag("system.measurement.raw.success", value));
+                newValues.add(value);
+
+                long weight = actLoadCell.measure();
+                System.out.println(messageReader.getMessageAndReplaceHashtag("system.measurement.weight.success", weight));
+                newWeights.add(weight);
+                
+                try {
+                    // 2s wait for next measurement
+                    Thread.sleep(2_000);
+                } catch (InterruptedException ex) {
+                    System.out.println("Error while sleeping!");
+                }
+            }
+            Long sum = newWeights.stream().collect(Collectors.summingLong(Long::longValue));
+            System.out.println(messageReader.getMessageAndReplaceHashtag("system.measurement.sum", sum.toString()));
+
+            excelWriter.writeValues(newValues, newWeights);
+
             try {
                 System.out.println("Start sleeping " + sleepTimeBetweenMeasurement + " seconds...");
                 Thread.sleep(sleepTimeBetweenMeasurement * 1000);
@@ -75,15 +103,28 @@ public class DataLoggerScheduler {
             }
         } while (true);
     }
-    
-    private void setupRaspberry(int pinNumberDat, int pinNumberSCK) {
-        GpioController gpioController = GpioFactory.getInstance();
-        pinLoadCellDat = gpioController.provisionDigitalInputPin(RaspiPin.getPinByAddress(pinNumberDat),
-                "Load-cell DAT", PinPullResistance.OFF);
-        pinLoadCellSck = gpioController.provisionDigitalOutputPin(RaspiPin.getPinByAddress(pinNumberSCK),
-                "Load-cell SCK", PinState.LOW);
-        hx711LoadCell1 = new Hx711(pinLoadCellDat, pinLoadCellSck, 3, 1.0, GainFactor.GAIN_128);
+
+    private void setupRaspberry(List<PinAssignment> pinAssignments, int maxWeight, double mVV) {
+
+        loadCells = new ArrayList<>();
+
+        for (PinAssignment actPins : pinAssignments) {
+
+            GpioController gpioController = GpioFactory.getInstance();
+            GpioPinDigitalInput pinDat = gpioController.provisionDigitalInputPin(RaspiPin.getPinByAddress(actPins.getDat()),
+                    "Load-cell DAT", PinPullResistance.OFF);
+            GpioPinDigitalOutput pinSck = gpioController.provisionDigitalOutputPin(RaspiPin.getPinByAddress(actPins.getSck()),
+                    "Load-cell SCK", PinState.LOW);
+            Hx711 hx711 = new Hx711(pinDat, pinSck, maxWeight, mVV, GainFactor.GAIN_128);
+            long tareValue = hx711.measureAndSetTare();
+            System.out.println(messageReader.getMessageAndReplaceHashtag("system.hx711.tare-value", tareValue));
+            
+            loadCells.add(hx711);
+            System.out.println(messageReader.getMessageAndReplaceHashtag("system.hx711.success", actPins));
+        }
+
         System.out.println(messageReader.getMessage("system.pins.success"));
+
     }
-    
+
 }
