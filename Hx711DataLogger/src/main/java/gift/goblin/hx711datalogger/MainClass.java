@@ -15,11 +15,13 @@ public class MainClass {
 
     /**
      * Main method for this application. Call em with following parameters:
-     * @param args- 
-     * param #1: filename of the excel-file (without ending .xlsx) (default = 
-     * param #2: sleep time seconds between measurement (default = 60 seconds)
-     * param #3: DAT pin number (default = 15)
-     * param #4: SCK pin number (default = 16)
+     * @param args- These are the parameters:
+     * param #1: filename of the excel-file (without ending .xlsx)
+     * param #2: sleep time in seconds between measurement (default = 60 seconds)
+     * param #3: load cell nominal load in kg
+     * param #4: load-cell mV/V
+     * param #5 and ongoing: DAT pin number + SCK pin number, separated by slash. E.g. "15/16".
+     * You can add one or more of these DAT + SCK combinations, if you have connected more than 1 loadcell.
      */
     public static void main(String[] args) throws IOException {
         new DataLoggerScheduler(args).doWork();
